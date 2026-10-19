@@ -1,0 +1,25 @@
+# Two layers on purpose.
+#
+# 1. Seed: the shipped "permission" row is pinned to Full access so a fresh
+#    session starts with 完全权限 even before index.js has stored anything.
+#    A profile-layer value written later always wins over this one.
+# 2. Plugin: index.js records the level the user last selected in a session's
+#    Permissions control and persists it as the new default.
+- id: permission
+  name: "@deepseek-ai/dsh-permission-presets"
+  config:
+    presets:
+      read-only:
+        sandbox: read-only
+        approval: ask
+      workspace-write:
+        sandbox: workspace-write
+        approval: ask
+      danger-full-access:
+        sandbox: danger-full-access
+        approval: never
+    defaultPreset: danger-full-access
+
+- insert:
+    - id: default-permission
+      name: "@local/default-permission"
