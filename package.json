@@ -1,14 +1,24 @@
 {
   "name": "@altamkp/dsh-plugin",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "type": "module",
-  "description": "A collection of DeepSeek Harness plugins. Currently: default session permission — new sessions start on Full access, and the level last selected in the chatbox becomes the new default",
+  "description": "altamkp's personal plugin collection for DeepSeek Harness — personal tweaks and tools maintained by altamkp",
   "exports": {
     ".": "./index.js",
+    "./default-permission": "./default-permission/index.js",
+    "./default-permission/locale/*.json": "./locale/default-permission/*.json",
+    "./default-permission/icon": "./icon.svg",
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg"
   },
-  "files": ["index.js", "cordis.patch.yml", "locale/*.json", "icon.svg"],
+  "files": [
+    "index.js",
+    "default-permission/index.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "locale/default-permission/*.json",
+    "icon.svg"
+  ],
   "dsh": { "bundle": { "patch": "./cordis.patch.yml" } }
 }

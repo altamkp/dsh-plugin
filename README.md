@@ -1,15 +1,49 @@
 # @altamkp/dsh-plugin
 
-A collection of plugins for the
+altamkp's personal plugin collection for the
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness).
+
+The collection is one package with one bundle patch, and every plugin inside it
+is a subpath module that carries **its own name and description**:
 
 | Plugin | Entry | What it does |
 |---|---|---|
-| Default session permission | package root (`@altamkp/dsh-plugin`) | New sessions start on **Full access** (完全权限), and the level you last selected in the chatbox becomes the new default |
+| Default session permission | `@altamkp/dsh-plugin/default-permission` | New sessions start on **Full access** (完全权限), and the level you last selected in the chatbox becomes the new default |
 
-Future plugins mount as subpath entries (`@altamkp/dsh-plugin/<name>`) in the
-same bundle patch, following the layout `@deepseek-ai/dsh-plugin-manager` uses:
-one package, one patch, many plugin rows.
+The collection itself is named "altamkp's plugin" (中文: "altamkp 的插件"); the
+plugin manager shows that name on the bundle, and each plugin's own name and
+description on the row it mounts.
+
+## Layout
+
+```
+dsh-plugin/
+├── index.js                      the collection root (no plugin of its own)
+├── cordis.patch.yml              the bundle patch: one row per plugin
+├── default-permission/
+│   └── index.js                  the Default session permission plugin
+├── locale/
+│   ├── en.json                   the collection's name and description
+│   ├── zh.json
+│   └── default-permission/
+│       ├── en.json               the plugin's own name and description
+│       └── zh.json
+└── icon.svg
+```
+
+Every plugin follows the same shape, the way `@deepseek-ai/dsh-plugin-manager`
+and `@vectorize-io/hindsight-coding-agents` do:
+
+1. The plugin lives in its own folder and is mounted as a subpath row in
+   `cordis.patch.yml` (`name: '@altamkp/dsh-plugin/<plugin>'`).
+2. `package.json` exports that subpath and its locale directory
+   (`"./<plugin>/locale/*.json"`), so the Harness can read the plugin's display
+   text without importing the plugin.
+3. `locale/<plugin>/<lang>.json` holds the plugin's own `meta.title` and
+   `meta.description`; `locale/<lang>.json` holds the collection's.
+
+Adding a plugin means adding a folder, a locale directory, the two export
+entries, and one row in the insert list of `cordis.patch.yml`.
 
 ## Default session permission
 
@@ -20,10 +54,11 @@ This plugin does two things with it:
 
 1. **Seeds** that field to `danger-full-access` by overriding the shipped
    `permission` row in `cordis.patch.yml`, so new sessions start with Full access.
-2. **Records your choices**: `index.js` watches each session's permission events
-   and writes the level you settled on back into `defaultPreset` through
-   `ctx.configEditor.edit()` — the same supported path the Settings forms use.
-   The value lands in your profile's `cordis.patch.yml`, so it survives restarts.
+2. **Records your choices**: `default-permission/index.js` watches each session's
+   permission events and writes the level you settled on back into
+   `defaultPreset` through `ctx.configEditor.edit()` — the same supported path
+   the Settings forms use. The value lands in your profile's `cordis.patch.yml`,
+   so it survives restarts.
 
 Change the access level in the Permissions selector (or with `/permission`) and
 that level becomes the default for every session created afterwards.

@@ -1,14 +1,16 @@
 # Two layers on purpose.
 #
 # 1. Seed: the shipped "permission" row is pinned to Full access so a fresh
-#    session starts with 完全权限 even before index.js has stored anything.
+#    session starts with 完全权限 even before the plugin has stored anything.
 #    A profile-layer value written later always wins over this one.
-# 2. Plugin: index.js records the level the user last selected in a session's
-#    Permissions control and persists it as the new default.
+# 2. Plugin: default-permission/index.js records the level the user last
+#    selected in a session's Permissions control and persists it as the new
+#    default.
 #
-# This bundle hosts several plugins: the default-permission plugin is the
-# package root, and future plugins mount as subpath rows
-# (name: '@altamkp/dsh-plugin/<plugin>') appended to the insert list below.
+# This bundle hosts several plugins: each plugin is a subpath module with its
+# own name and description (locale/<plugin>/<lang>.json), and every plugin
+# mounts as a row appended to the insert list below. The package root is the
+# collection itself and carries no plugin row.
 - id: permission
   name: "@deepseek-ai/dsh-permission-presets"
   config:
@@ -26,5 +28,5 @@
 
 - insert:
     - id: default-permission
-      name: "@altamkp/dsh-plugin"
+      name: "@altamkp/dsh-plugin/default-permission"
 
