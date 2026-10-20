@@ -42,6 +42,7 @@
           approval: true
           error: true
         suppressWhenFocused: true
+        clickToFocus: true
         cooldownMs: 5000
         includeSubagents: false
 

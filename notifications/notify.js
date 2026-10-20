@@ -6,16 +6,17 @@
  * reach from a Host plugin. Each platform therefore gets the notification
  * path its operating system already ships with:
  *
- * - **Windows** — a WinRT toast raised by Windows PowerShell 5.1. Windows
- *   only shows a toast for an identity it can resolve to an installed
- *   application; the desktop shell owns the "DeepSeek Harness" identity, but
- *   the Host is a different process and cannot borrow it, so the toast is
- *   attributed to "Windows PowerShell" and the notification title carries the
- *   application name.
- * - **macOS** — `osascript`'s `display notification`, the only built-in way to
- *   raise a Notification Center banner from a script.
- * - **Linux** — `notify-send` from libnotify, with `zenity --notification` as
- *   a fallback for installations without libnotify.
+ * - **Windows** — a WinRT toast raised by Windows PowerShell 5.1, shown under
+ *   an identity the plugin registers for the application. The toast carries
+ *   the application's own deep link, so a click on it opens that link and the
+ *   application restores and focuses its window. See {@link ./windows.js}.
+ * - **macOS** — `terminal-notifier` when it is installed, because it can open
+ *   a link when the notification is clicked, and `osascript`'s
+ *   `display notification` otherwise.
+ * - **Linux** — a notification posted straight to the notification daemon over
+ *   D-Bus, which is the only way to learn that the user clicked it; the
+ *   daemon is asked to report the click and the plugin then opens the
+ *   application's deep link. `notify-send` is the fallback.
  *
  * The same Windows script also answers "is the Harness in the foreground?",
  * which lets the plugin stay quiet while the user is already looking at the
@@ -25,13 +26,15 @@
 
 import { spawn } from 'node:child_process'
 
+import { prepareActivationIdentity, WINDOWS_FALLBACK_APP_ID } from './windows.js'
+
 /**
- * AppUserModelID of Windows PowerShell.
+ * The deep link the application answers.
  *
- * It is registered on every Windows installation, which is exactly what
- * Windows requires before it shows a toast for a given identity.
+ * The application registers the link itself and restores and focuses its
+ * window when it is opened, which is the shortest way back to it.
  */
-const WINDOWS_APP_ID = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe'
+const DEEP_LINK = 'dsh://open'
 
 /**
  * The Windows helper.
@@ -39,6 +42,11 @@ const WINDOWS_APP_ID = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShel
  * It reads its whole input from environment variables, so no user text ever
  * reaches the PowerShell parser, and it is passed with `-EncodedCommand`,
  * which also keeps the script itself free of quoting hazards.
+ *
+ * The toast is built as plain XML: the template API cannot express a
+ * protocol activation, and the content of a template cannot be loaded back
+ * into a document. Every toast carries its own tag, because Windows replaces
+ * the previous banner silently when two toasts share one.
  *
  * The focus probe compiles a tiny `user32` binding to read the foreground
  * window's process; when that process is the Harness itself the script exits
@@ -56,12 +64,17 @@ if ($focus) {
         exit 0
     }
 }
+$title = [System.Security.SecurityElement]::Escape($env:DSH_NOTIFY_TITLE)
+$body = [System.Security.SecurityElement]::Escape($env:DSH_NOTIFY_BODY)
+$launch = $env:DSH_NOTIFY_LAUNCH
+$activation = ''
+if ($launch) { $activation = ' activationType="protocol" launch="' + $launch + '"' }
+$xmlText = '<toast' + $activation + '><visual><binding template="ToastGeneric"><text id="1">' + $title + '</text><text id="2">' + $body + '</text></binding></visual></toast>'
+$document = [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml, ContentType = WindowsRuntime]::new()
+$document.LoadXml($xmlText)
+$toast = [Windows.UI.Notifications.ToastNotification]::new($document)
+$toast.tag = [guid]::NewGuid().ToString('N')
 [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
-$xml = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)
-$texts = $xml.GetElementsByTagName('text')
-[void]$texts.Item(0).AppendChild($xml.CreateTextNode($env:DSH_NOTIFY_TITLE))
-[void]$texts.Item(1).AppendChild($xml.CreateTextNode($env:DSH_NOTIFY_BODY))
-$toast = [Windows.UI.Notifications.ToastNotification]::new($xml)
 [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($env:DSH_NOTIFY_APPID).Show($toast)
 Write-Output 'shown'`
 
@@ -84,6 +97,18 @@ end run`
  * @returns {string} the base64 encoded command.
  */
 const encodeCommand = (script) => Buffer.from(script, 'utf16le').toString('base64')
+
+/**
+ * Quote a value for a GVariant argument.
+ *
+ * The notification daemon receives the value as GVariant, where a backslash
+ * and a single quote have to be doubled, and a literal single quote is
+ * written twice as well.
+ *
+ * @param {string} value - the value to quote.
+ * @returns {string} the quoted value.
+ */
+const gvariant = (value) => `'${value.replace(/\\/g, '\\\\').replace(/'/g, "''")}'`
 
 /**
  * Run one helper process to completion.
@@ -152,6 +177,8 @@ const run = (command, args, env) =>
  * @param {object} options
  * @param {string} [options.appName] - the application name shown on the notification.
  * @param {string} [options.appProcessName] - the foreground process that counts as "the app is focused".
+ * @param {string} [options.appPath] - the executable of the application.
+ * @param {boolean} [options.clickToFocus] - whether a click on the toast has to focus the application.
  * @param {string} [options.platform] - the platform to target; defaults to the running one.
  * @param {object} [options.logger] - the plugin logger.
  * @returns {{ describe: () => string, notify: (notification: { title: string, body: string, suppressIfFocused?: boolean }) => Promise<{ delivered: boolean, reason: string }> }}
@@ -161,6 +188,8 @@ export function createNotifier(options = {}) {
   const {
     appName = 'DeepSeek Harness',
     appProcessName = appName,
+    appPath,
+    clickToFocus = true,
     platform = process.platform,
     logger,
   } = options
@@ -168,19 +197,89 @@ export function createNotifier(options = {}) {
   /** Serializes the helper processes so a burst of events cannot fork a storm. */
   let queue = Promise.resolve()
 
+  /**
+   * The listener that learns about a click on a Linux notification.
+   *
+   * The notification daemon reports the click as a signal, and the daemon
+   * itself cannot open the application, so the link is opened here.
+   */
+  let watcher
+  const startWatcher = () => {
+    if (platform !== 'linux' || watcher !== undefined) return
+    let child
+    try {
+      child = spawn(
+        'gdbus',
+        [
+          'monitor',
+          '--session',
+          '--dest',
+          'org.freedesktop.Notifications',
+          '--object-path',
+          '/org/freedesktop/Notifications',
+        ],
+        { stdio: ['ignore', 'pipe', 'ignore'] },
+      )
+    } catch {
+      return
+    }
+    let buffer = ''
+    child.stdout?.setEncoding('utf8')
+    child.stdout?.on('data', (chunk) => {
+      buffer += chunk
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.includes('ActionInvoked')) continue
+        if (!line.includes("'default'")) continue
+        void run('xdg-open', [DEEP_LINK])
+      }
+    })
+    child.on('error', () => {
+      watcher = undefined
+    })
+    watcher = child
+  }
+
+  /**
+   * The identity a Windows toast is raised under, and the link a click on it
+   * opens.
+   *
+   * Registering the identity takes a moment, so it is prepared in the
+   * background and awaited by the first notification that needs it.
+   */
+  let identity
+  const identityPromise =
+    platform === 'win32' && clickToFocus
+      ? prepareActivationIdentity({ appName, appProcessName, appPath, logger })
+      : Promise.resolve({
+          appId: WINDOWS_FALLBACK_APP_ID,
+          launch: '',
+          activated: false,
+          reason: 'disabled',
+        })
+  void identityPromise.then((value) => {
+    identity = value
+  })
+
   const describe = () => {
-    if (platform === 'win32') return 'Windows toast (Windows PowerShell)'
-    if (platform === 'darwin') return 'macOS notification (osascript)'
+    if (platform === 'win32') {
+      const suffix = identity?.activated === true ? ', a click focuses the app' : ''
+      return `Windows toast (Windows PowerShell)${suffix}`
+    }
+    if (platform === 'darwin') return 'macOS notification (osascript, terminal-notifier when installed)'
     if (platform === 'linux') return 'Linux notification (notify-send)'
     return `no native notification support for platform "${platform}"`
   }
 
   const showWindows = async ({ title, body, suppressIfFocused }) => {
+    const current = await identityPromise
     const env = {
       ...process.env,
       DSH_NOTIFY_TITLE: title,
       DSH_NOTIFY_BODY: body,
-      DSH_NOTIFY_APPID: WINDOWS_APP_ID,
+      DSH_NOTIFY_APPID: current.appId,
+      DSH_NOTIFY_LAUNCH: current.launch,
       DSH_NOTIFY_FOCUS: suppressIfFocused ? appProcessName : '',
     }
     const arguments_ = ['-NoProfile', '-NonInteractive', '-EncodedCommand', encodeCommand(WINDOWS_TOAST_SCRIPT)]
@@ -191,10 +290,44 @@ export function createNotifier(options = {}) {
     return run('pwsh.exe', arguments_, env)
   }
 
-  const showMacos = async ({ title, body }) =>
-    run('osascript', ['-e', MACOS_NOTIFY_SCRIPT, title, body])
+  const showMacos = async ({ title, body }) => {
+    // terminal-notifier can open a link when the notification is clicked, and
+    // the plain banner of osascript never can.
+    const terminal = await run('terminal-notifier', [
+      '-title',
+      title,
+      '-message',
+      body,
+      '-open',
+      DEEP_LINK,
+    ])
+    if (!terminal.missing) return terminal
+    return run('osascript', ['-e', MACOS_NOTIFY_SCRIPT, title, body])
+  }
 
   const showLinux = async ({ title, body }) => {
+    // The notification daemon is asked directly, because only that way the
+    // click of the user is reported back.
+    startWatcher()
+    const posted = await run('gdbus', [
+      'call',
+      '--session',
+      '--dest',
+      'org.freedesktop.Notifications',
+      '--object-path',
+      '/org/freedesktop/Notifications',
+      '--method',
+      'org.freedesktop.Notifications.Notify',
+      gvariant(appName),
+      'uint32 0',
+      "''",
+      gvariant(title),
+      gvariant(body),
+      "['default', '']",
+      "{'desktop-entry': <'deepseek-harness'>}",
+      'int32 10000',
+    ])
+    if (!posted.missing) return posted
     const result = await run('notify-send', [`--app-name=${appName}`, title, body])
     if (!result.missing) return result
     // Installations without libnotify still ship zenity on most desktops.
@@ -222,5 +355,16 @@ export function createNotifier(options = {}) {
     return { delivered: true, reason: 'shown' }
   }
 
-  return { describe, notify }
+  /** Stop the listener, when there is one. */
+  const dispose = () => {
+    if (watcher === undefined) return
+    try {
+      watcher.kill()
+    } catch {
+      // The listener is already gone.
+    }
+    watcher = undefined
+  }
+
+  return { describe, notify, dispose }
 }

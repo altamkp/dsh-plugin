@@ -35,6 +35,14 @@
  *   "task finished" notification when the Harness itself is in front. The
  *   question, approval and error notifications always go out, because those
  *   are the ones a user must not miss.
+ * - **A click is part of the notification.** The toast is not only a
+ *   message, it also carries the way back to the application: a click on it
+ *   brings the Harness to the front. On Windows that means the toast is
+ *   raised under an identity the plugin registers for the application and
+ *   carries the application's own deep link; on Linux the notification
+ *   daemon reports the click and the plugin opens that link; on macOS it
+ *   needs `terminal-notifier`, because the plain banner of `osascript`
+ *   cannot report a click at all.
  *
  * The plugin carries no dependency and declares no Config schema, so it stays
  * installable as a linked local package. Its options are read from the row's
@@ -62,6 +70,17 @@ const DEFAULTS = {
    * focus". Only the Windows helper can answer that question.
    */
   appProcessName: 'DeepSeek Harness',
+  /**
+   * The executable a click on the toast has to launch.
+   *
+   * Empty means "find it yourself", which works whenever the plugin runs
+   * inside the desktop application.
+   */
+  appPath: '',
+  /**
+   * Let a click on the toast bring the application to the front.
+   */
+  clickToFocus: true,
   /** Which kinds of attention produce a notification. */
   events: {
     completed: true,
@@ -141,6 +160,8 @@ export const readConfig = (raw) => {
   return {
     appName: text(source.appName, DEFAULTS.appName),
     appProcessName: text(source.appProcessName, DEFAULTS.appProcessName),
+    appPath: text(source.appPath, DEFAULTS.appPath),
+    clickToFocus: flag(source.clickToFocus, DEFAULTS.clickToFocus),
     events: group(source.events, DEFAULTS.events),
     suppressWhenFocused: flag(source.suppressWhenFocused, DEFAULTS.suppressWhenFocused),
     cooldownMs: count(source.cooldownMs, DEFAULTS.cooldownMs),
@@ -160,6 +181,8 @@ export function apply(ctx, config) {
   const notifier = createNotifier({
     appName: settings.appName,
     appProcessName: settings.appProcessName,
+    appPath: settings.appPath,
+    clickToFocus: settings.clickToFocus,
     logger: ctx.logger,
   })
 
@@ -176,6 +199,11 @@ export function apply(ctx, config) {
   const notified = new Map()
 
   ctx.logger.info(`notifications: desktop notifications through ${notifier.describe()}`)
+
+  // The listener that learns about a click has to be stopped with the plugin.
+  ctx.on('dispose', () => {
+    notifier.dispose()
+  })
 
   const describe = (error) => (error instanceof Error ? error.message : String(error))
 

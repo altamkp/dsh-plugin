@@ -26,6 +26,7 @@ dsh-plugin/
 ├── notifications/
 │   ├── index.js                  the Session notifications plugin
 │   ├── notify.js                 the per-platform delivery
+│   ├── windows.js                the Windows toast identity and its deep link
 │   └── icon.svg                  the plugin's own icon
 ├── locale/
 │   ├── en.json                   the collection's name and description
@@ -111,13 +112,48 @@ The Harness Host is a plain Node process, so the desktop shell's own
 `Notification` API is not available to a plugin. Every platform therefore uses
 the notification path the operating system already ships with:
 
-| Platform | Mechanism | Attribution |
+| Platform | Mechanism | Click brings the app forward? |
 |---|---|---|
-| Windows | a WinRT toast raised by Windows PowerShell 5.1 | "Windows PowerShell" — Windows only shows a toast for an identity it can resolve, and the Host is a different process from the desktop shell, so it cannot borrow the "DeepSeek Harness" identity. The notification title carries the app name. |
-| macOS | `osascript`'s `display notification` | the script editor; the notification title carries the app name |
-| Linux | `notify-send` (libnotify), falling back to `zenity --notification` | the app name passed with `--app-name` |
+| Windows | a WinRT toast raised by Windows PowerShell 5.1, shown under an identity the plugin registers for the app | **yes** — the toast carries the app's own deep link, and the app restores and focuses its window when that link is opened |
+| macOS | `terminal-notifier` when it is installed, otherwise `osascript`'s `display notification` | only with `terminal-notifier`; the plain banner of `osascript` cannot report a click at all |
+| Linux | a notification posted straight to the notification daemon over D-Bus, falling back to `notify-send` | **yes** — the daemon reports the click and the plugin opens the app's deep link |
 
 No helper program is installed and nothing is written outside your profile.
+
+### Clicking the notification
+
+On Windows a toast is shown under an identity, and a click on the toast is
+delivered to the application behind that identity. The identity of Windows
+PowerShell — the process that raises the toast — has no application behind it,
+so a click on such a toast can only ever open a console window, which is why
+clicking the toast did nothing at all.
+
+The plugin therefore registers an identity of its own, in the user's own
+registry:
+
+```
+HKCU\Software\Classes\AppUserModelId\com.altamkp.dsh.notifications
+    DisplayName = "DeepSeek Harness"
+    IconUri     = the icon of the application
+```
+
+The toast is then shown as coming from the application, with the application's
+icon, and it carries the application's deep link (`dsh://open`). A click on
+the toast opens that link, and the application answers it by restoring its
+window when it is minimised and focusing it. Nothing is started a second time
+and no console window appears.
+
+The deep link is registered by the application itself when it starts. When it
+is missing, the plugin says so in the log and the toast only dismisses on a
+click, which is the old behaviour.
+
+On Linux the click is reported by the notification daemon, because that is the
+only way to learn about it: the plugin asks the daemon to report the click and
+opens the deep link itself. On macOS the plain `osascript` banner cannot report
+a click at all — the Notification Center delivers a click to the application
+that posted the banner, and a script has no such application — so the plugin
+uses `terminal-notifier` when it is installed, and falls back to the banner
+otherwise.
 
 ### While you are looking at the app
 
@@ -138,12 +174,14 @@ is optional:
   config:
     appName: "DeepSeek Harness"   # the notification title
     appProcessName: "DeepSeek Harness"  # the foreground process that counts as "focused" (Windows)
+    appPath: ""                    # the executable of the application; empty means "find it yourself"
     events:
       completed: true             # the task finished
       question: true              # the agent asked a question
       approval: true              # the agent needs an approval
       error: true                 # a step failed
     suppressWhenFocused: true     # stay quiet about a finished task while the app is in front
+    clickToFocus: true            # a click on the toast brings the application to the front
     cooldownMs: 5000              # minimum gap between two notifications of one kind
     includeSubagents: false       # also notify for delegated child sessions
     messages:                     # your own notification texts
@@ -172,6 +210,11 @@ fields you want to keep.
   `includeSubagents: true` to hear from them too.
 - **Delivery never breaks the session.** The notification happens after the
   fact, so a missing helper or a failing toast cannot disturb a running turn.
+- **A click is part of the notification.** The toast is not only a message: it
+  carries the way back to the application, so a click brings the Harness to
+  the front instead of doing nothing. That is why the plugin registers an
+  identity of its own on Windows instead of raising the toast as Windows
+  PowerShell.
 
 ## Install
 
@@ -215,6 +258,17 @@ from your profile's `cordis.patch.yml`.
 Harness 0.2.1-rc.2 or newer. The permission plugin stays inactive rather than
 throwing when `permissionPresets`, `configEditor` or `sessions` are absent; the
 notifications plugin needs the `sessions` service and nothing else.
+
+The desktop notification is raised with what the operating system already
+ships: Windows PowerShell 5.1 on Windows, `osascript` on macOS and
+`notify-send` on Linux. A click that brings the application to the front needs
+a little more:
+
+| Platform | Needs | Without it |
+|---|---|---|
+| Windows | nothing extra; the application registers its own deep link | the toast still arrives, a click only dismisses it |
+| macOS | `terminal-notifier` (`brew install terminal-notifier`) | the banner arrives, a click dismisses it |
+| Linux | `gdbus` (part of `libglib2.0-bin`, present on GNOME) | the plugin falls back to `notify-send`, a click dismisses it |
 
 ## License
 

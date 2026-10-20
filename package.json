@@ -1,6 +1,6 @@
 {
   "name": "@altamkp/dsh-plugin",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "private": true,
   "type": "module",
   "description": "altamkp's personal plugin collection for DeepSeek Harness — personal tweaks and tools maintained by altamkp",
@@ -20,6 +20,7 @@
     "default-permission/index.js",
     "notifications/index.js",
     "notifications/notify.js",
+    "notifications/windows.js",
     "notifications/icon.svg",
     "cordis.patch.yml",
     "locale/*.json",
