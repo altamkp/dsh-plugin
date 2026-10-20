@@ -1,6 +1,6 @@
 {
   "name": "@altamkp/dsh-plugin",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "private": true,
   "type": "module",
   "description": "altamkp's personal plugin collection for DeepSeek Harness — personal tweaks and tools maintained by altamkp",
@@ -9,15 +9,22 @@
     "./default-permission": "./default-permission/index.js",
     "./default-permission/locale/*.json": "./locale/default-permission/*.json",
     "./default-permission/icon": "./icon.svg",
+    "./notifications": "./notifications/index.js",
+    "./notifications/locale/*.json": "./locale/notifications/*.json",
+    "./notifications/icon": "./notifications/icon.svg",
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg"
   },
   "files": [
     "index.js",
     "default-permission/index.js",
+    "notifications/index.js",
+    "notifications/notify.js",
+    "notifications/icon.svg",
     "cordis.patch.yml",
     "locale/*.json",
     "locale/default-permission/*.json",
+    "locale/notifications/*.json",
     "icon.svg"
   ],
   "dsh": { "bundle": { "patch": "./cordis.patch.yml" } }

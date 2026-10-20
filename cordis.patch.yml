@@ -29,4 +29,19 @@
 - insert:
     - id: default-permission
       name: "@altamkp/dsh-plugin/default-permission"
+    - id: notifications
+      name: "@altamkp/dsh-plugin/notifications"
+      # Every field is optional and these are the defaults. A profile-level
+      # patch for this row replaces the whole mapping, so restate the fields
+      # you want to keep.
+      config:
+        appName: "DeepSeek Harness"
+        events:
+          completed: true
+          question: true
+          approval: true
+          error: true
+        suppressWhenFocused: true
+        cooldownMs: 5000
+        includeSubagents: false
 
