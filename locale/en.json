@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "altamkp's plugin",
-    "description": "New sessions start on Full access, and changing the access level in the chatbox makes that level the new default for every session after it."
+    "description": "altamkp's personal plugin collection for DeepSeek Harness. Bundled plugin: Default Session Permission — new sessions start on Full access, and changing the access level in the chatbox makes that level the new default for every session after it."
   }
 }
