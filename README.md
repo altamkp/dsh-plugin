@@ -1,28 +1,32 @@
-# DSH Default Session Permission
+# @altamkp/dsh-plugin
 
-A [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) bundle that
-decides which permission level new sessions start with — and keeps that default in
-step with the level you last selected in the chatbox.
+A collection of plugins for the
+[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness).
 
-- New sessions start on **Full access** (完全权限) by default.
-- Change the access level in the Permissions selector (or with `/permission`) and
-  that level becomes the default for every session created afterwards.
-- The value is stored in your profile's `cordis.patch.yml`, so it survives
-  restarts and upgrades.
+| Plugin | Entry | What it does |
+|---|---|---|
+| Default session permission | package root (`@altamkp/dsh-plugin`) | New sessions start on **Full access** (完全权限), and the level you last selected in the chatbox becomes the new default |
 
-## How it works
+Future plugins mount as subpath entries (`@altamkp/dsh-plugin/<name>`) in the
+same bundle patch, following the layout `@deepseek-ai/dsh-plugin-manager` uses:
+one package, one patch, many plugin rows.
+
+## Default session permission
 
 Harness ships `@deepseek-ai/dsh-permission-presets`, which bundles a sandbox mode
 with an approval policy into named presets (仅可查看 / 工作区内修改 / 完全权限).
 Its `defaultPreset` Config field is what a genuinely fresh session is pinned to.
-
-This bundle does two things:
+This plugin does two things with it:
 
 1. **Seeds** that field to `danger-full-access` by overriding the shipped
-   `permission` row in `cordis.patch.yml`.
+   `permission` row in `cordis.patch.yml`, so new sessions start with Full access.
 2. **Records your choices**: `index.js` watches each session's permission events
    and writes the level you settled on back into `defaultPreset` through
    `ctx.configEditor.edit()` — the same supported path the Settings forms use.
+   The value lands in your profile's `cordis.patch.yml`, so it survives restarts.
+
+Change the access level in the Permissions selector (or with `/permission`) and
+that level becomes the default for every session created afterwards.
 
 ### Details that matter
 
@@ -44,23 +48,19 @@ This bundle does two things:
 
 ## Install
 
-Copy this directory anywhere and install it through the Harness plugin manager:
-
-```yaml
-# in the plugin manager: Install bundle → path to this directory
-```
-
-or add it to your profile's `package.json`:
+Copy this repository anywhere and install it through the Harness plugin manager
+(Install bundle → path to this directory), or add it to your profile's
+`package.json`:
 
 ```json
 {
   "dsh": {
     "profile": {
-      "bundles": ["@local/default-permission"]
+      "bundles": ["@altamkp/dsh-plugin"]
     }
   },
   "dependencies": {
-    "@local/default-permission": "link:/path/to/dsh-default-permission"
+    "@altamkp/dsh-plugin": "link:/path/to/dsh-plugin"
   }
 }
 ```

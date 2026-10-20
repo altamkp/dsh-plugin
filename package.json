@@ -1,9 +1,9 @@
 {
-  "name": "@local/default-permission",
-  "version": "1.1.0",
+  "name": "@altamkp/dsh-plugin",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "Sets the default permission preset for new DeepSeek Harness sessions and keeps it in step with the level last selected in the chatbox",
+  "description": "A collection of DeepSeek Harness plugins. Currently: default session permission — new sessions start on Full access, and the level last selected in the chatbox becomes the new default",
   "exports": {
     ".": "./index.js",
     "./locale/*.json": "./locale/*.json",
