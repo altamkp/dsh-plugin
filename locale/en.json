@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Default Session Permission",
+    "title": "altamkp's plugin",
     "description": "New sessions start on Full access, and changing the access level in the chatbox makes that level the new default for every session after it."
   }
 }
