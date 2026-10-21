@@ -9,6 +9,7 @@
  * |---|---|
  * | Default session permission | `@altamkp/dsh-plugin/default-permission` |
  * | Session notifications | `@altamkp/dsh-plugin/notifications` |
+ * | Conversation width | `@altamkp/dsh-plugin/chat-width` |
  *
  * The bundle patch (`cordis.patch.yml`) inserts one row per plugin, and each
  * row's display text comes from that plugin's own locale directory
@@ -16,4 +17,4 @@
  */
 
 /** The plugins this collection ships, by their module subpath. */
-export const plugins = ['default-permission', 'notifications']
+export const plugins = ['default-permission', 'notifications', 'chat-width']

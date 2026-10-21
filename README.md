@@ -10,6 +10,7 @@ is a subpath module that carries **its own name and description**:
 |---|---|---|
 | Default session permission | `@altamkp/dsh-plugin/default-permission` | New sessions start on **Full access** (完全权限), and the level you last selected in the chatbox becomes the new default |
 | Session notifications | `@altamkp/dsh-plugin/notifications` | A native desktop notification on Windows, macOS and Linux when a session needs you |
+| Conversation width | `@altamkp/dsh-plugin/chat-width` | A **Conversation width** slider in Settings → General that pins the transcript to a fixed pixel width instead of wide empty margins |
 
 The collection itself is named "altamkp's plugin" (中文: "altamkp 的插件"); the
 plugin manager shows that name on the bundle, and each plugin's own name and
@@ -28,6 +29,10 @@ dsh-plugin/
 │   ├── notify.js                 the per-platform delivery
 │   ├── windows.js                the Windows toast identity and its deep link
 │   └── icon.svg                  the plugin's own icon
+├── chat-width/
+│   ├── index.js                  the Conversation width plugin (Host half)
+│   ├── client.js                 its Web page half: the Settings slider
+│   └── icon.svg                  the plugin's own icon
 ├── locale/
 │   ├── en.json                   the collection's name and description
 │   ├── zh.json
@@ -35,6 +40,9 @@ dsh-plugin/
 │   │   ├── en.json               the plugin's own name and description
 │   │   └── zh.json
 │   └── notifications/
+│       ├── en.json
+│       └── zh.json
+│   └── chat-width/
 │       ├── en.json
 │       └── zh.json
 └── icon.svg
@@ -215,6 +223,22 @@ fields you want to keep.
   the front instead of doing nothing. That is why the plugin registers an
   identity of its own on Windows instead of raising the toast as Windows
   PowerShell.
+
+## Conversation width
+
+The Web UI centers the conversation on a fixed-width column, which leaves two
+large empty margins on a wide window. The layout already supports a pinned
+width — invisible drag handles on either edge of the transcript store a pixel
+preference in `localStorage["dsh.conversation.contentWidth"]` — but there was
+no visible control for it. This plugin adds that control: a
+**Conversation width** row (对话宽度) in **Settings → General**, with a slider
+(640–2000 px) and a **Default** (默认) button that removes the preference
+again.
+
+The slider reads and writes the same preference the drag handles use, so both
+stay in agreement; the change applies immediately, also while a session is
+open. The plugin is Web-page-only (`dsh.client` in `package.json`) — the Host
+half carries just the row, its locale text and the icon.
 
 ## Install
 

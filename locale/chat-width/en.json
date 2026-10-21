@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Conversation Width",
+    "description": "Adds a Conversation width slider to Settings → General that pins the transcript to a fixed pixel width instead of leaving wide empty margins on both sides."
+  }
+}

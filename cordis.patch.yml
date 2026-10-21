@@ -45,4 +45,6 @@
         clickToFocus: true
         cooldownMs: 5000
         includeSubagents: false
+    - id: chat-width
+      name: "@altamkp/dsh-plugin/chat-width"
 
