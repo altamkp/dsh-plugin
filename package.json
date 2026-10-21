@@ -1,6 +1,6 @@
 {
   "name": "@altamkp/dsh-plugin",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "private": true,
   "type": "module",
   "description": "altamkp's personal plugin collection for DeepSeek Harness — personal tweaks and tools maintained by altamkp",
@@ -23,13 +23,16 @@
   "files": [
     "index.js",
     "default-permission/index.js",
+    "default-permission/package.json",
     "notifications/index.js",
     "notifications/notify.js",
     "notifications/windows.js",
     "notifications/icon.svg",
+    "notifications/package.json",
     "chat-width/index.js",
     "chat-width/client.js",
     "chat-width/icon.svg",
+    "chat-width/package.json",
     "cordis.patch.yml",
     "locale/*.json",
     "locale/default-permission/*.json",
@@ -39,6 +42,13 @@
   ],
   "dsh": {
     "bundle": { "patch": "./cordis.patch.yml" },
-    "client": { "platform": "web", "immediately": true }
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-settings-general"
+      ]
+    }
   }
 }

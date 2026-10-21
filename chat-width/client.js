@@ -1,13 +1,13 @@
 /**
  * Conversation width — Web page half.
  *
- * The Harness already stores a transcript width preference in
- * `localStorage["dsh.conversation.contentWidth"]` (px) and applies it as the
- * `--dsh-chat-user-width` custom property on the conversation body whenever
- * the column is measured or an edge handle is dragged. This plugin adds the
- * missing visible control: a slider in Settings → General that reads and
- * writes that same preference, so the built-in drag handles and this setting
- * always agree, plus a Default entry that removes the preference again.
+ * A Settings → General toggle that lets the transcript use the full
+ * conversation-column width instead of the shipped centered default
+ * (`--dsh-chat-content-width` clamps it to 680–920 px, which leaves two wide
+ * blank margins on a narrow window). While enabled, this plugin pins the same
+ * custom property the app itself consumes (`--dsh-chat-user-width`) to the
+ * full column width, re-asserting it when the app republishes its own value
+ * (mount, resize, drag). Off (the default) removes the override entirely.
  */
 
 window.__ModuleLoader__.load({
@@ -17,26 +17,17 @@ window.__ModuleLoader__.load({
     const h = React.createElement;
 
     const NS = '@altamkp/dsh-plugin/chat-width';
-    /** Same key the shipped conversation width handles persist to. */
-    const WIDTH_KEY = 'dsh.conversation.contentWidth';
-    /** Matches the app's own floor and edge budget (ConversationWidthControls). */
-    const CONTENT_MIN = 640;
-    const EDGE_BUDGET = 176;
-    const SLIDER_MAX = 2000;
-    const SLIDER_STEP = 10;
+    /** Our own preference key — never touch the app's own width pref. */
+    const FULL_KEY = 'dsh.conversation.fullWidth';
 
     const DICT = {
       en: {
         'chatwidth.title': 'Conversation width',
-        'chatwidth.desc.default': 'Follows the window (the shipped default). Drag either edge of the transcript, or use this slider, to pin a width.',
-        'chatwidth.desc.value': 'The transcript is pinned to {width} px. Drag either edge of the transcript or use this slider to change it.',
-        'chatwidth.reset': 'Default',
+        'chatwidth.desc': 'Stretch the transcript and composer to the full window width instead of the centered default.',
       },
       zh: {
         'chatwidth.title': '对话宽度',
-        'chatwidth.desc.default': '跟随窗口（默认）。拖动对话两侧边缘或使用此滑块可固定宽度。',
-        'chatwidth.desc.value': '对话内容固定为 {width} 像素。拖动对话两侧边缘或使用此滑块可调整。',
-        'chatwidth.reset': '默认',
+        'chatwidth.desc': '让对话内容和输入框铺满整个窗口宽度，而不是居中的默认宽度。',
       },
     };
 
@@ -45,97 +36,72 @@ window.__ModuleLoader__.load({
       '.akp-cw-rowText{flex-direction:column;flex:1;gap:4px;min-width:0;padding-right:48px;display:flex}',
       '.akp-cw-title{color:var(--dsw-alias-label-primary);font-size:14px;font-weight:400;line-height:22px}',
       '.akp-cw-desc{color:var(--dsw-alias-label-tertiary);font-size:12px;font-weight:400;line-height:18px}',
-      '.akp-cw-control{align-items:center;gap:10px;display:flex;flex:none}',
-      '.akp-cw-value{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;min-width:64px;text-align:right;font-variant-numeric:tabular-nums}',
-      '.akp-cw-slider{width:180px;accent-color:var(--dsw-alias-brand-primary);cursor:pointer}',
-      '.akp-cw-reset{border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-module-platform);height:28px;font:inherit;color:var(--dsw-alias-label-secondary);cursor:pointer;border:none;padding:0 10px;font-size:12px;line-height:18px}',
-      '.akp-cw-reset:hover{background:var(--dsw-alias-interactive-bg-hover)}',
+      '.akp-cw-switch{appearance:none;position:relative;width:40px;height:24px;border-radius:12px;background:var(--dsw-alias-bg-module-platform);outline:none;cursor:pointer;transition:background .15s;flex:none;margin:0}',
+      '.akp-cw-switch:checked{background:var(--dsw-alias-brand-primary)}',
+      '.akp-cw-switch::before{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:9px;background:#fff;transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}',
+      '.akp-cw-switch:checked::before{transform:translateX(16px)}',
     ].join('\n');
 
-    /** Read the stored preference, or null when absent or corrupt. */
     function readPreference() {
       try {
-        const raw = localStorage.getItem(WIDTH_KEY);
-        if (raw === null) return null;
-        const value = Number(raw);
-        return Number.isFinite(value) && value > 0 ? value : null;
+        return localStorage.getItem(FULL_KEY) === '1';
       } catch {
-        return null;
+        return false;
       }
     }
 
-    /**
-     * Apply a preference (or null for default) to every live conversation
-     * body — the same property, on the same element, the app itself sets.
-     */
-    function applyWidth(preference) {
-      const carriers = document.querySelectorAll('[style*="--dsh-conversation-column-width"]');
-      let applied = false;
-      carriers.forEach((el) => {
+    /** Elements the conversation body publishes its column width on. */
+    function carriers() {
+      return document.querySelectorAll('[style*="--dsh-conversation-column-width"]');
+    }
+
+    function applyFullWidth() {
+      carriers().forEach((el) => {
         const column = Number.parseFloat(el.style.getPropertyValue('--dsh-conversation-column-width'))
           || el.offsetWidth;
-        if (preference === null) {
-          el.style.removeProperty('--dsh-chat-user-width');
-        } else {
-          const max = Math.max(CONTENT_MIN, column - EDGE_BUDGET);
-          const resolved = Math.min(Math.max(preference, CONTENT_MIN), max);
-          el.style.setProperty('--dsh-chat-user-width', `${resolved}px`);
-        }
-        applied = true;
+        if (column > 0) el.style.setProperty('--dsh-chat-user-width', `${column}px`);
       });
-      // No conversation is mounted (Settings is a separate panel): stage the
-      // value on the root so it holds until the app republishes on mount.
-      if (preference !== null && !applied) {
-        document.documentElement.style.setProperty('--dsh-chat-user-width', `${preference}px`);
-      } else {
-        document.documentElement.style.removeProperty('--dsh-chat-user-width');
-      }
     }
 
-    function WidthRow({ t }) {
-      const tr = (key, params) => {
-        const lookup = typeof t === 'function' ? t : (k) => DICT.en[k] || k;
-        const text = lookup(key) || DICT.en[key] || key;
-        if (params && params.width !== undefined) return String(text).replace('{width}', String(params.width));
-        return text;
-      };
-      const [preference, setPreference] = React.useState(readPreference);
+    function clearFullWidth() {
+      carriers().forEach((el) => el.style.removeProperty('--dsh-chat-user-width'));
+    }
+
+    function WidthRow() {
+      const tr = (key) => DICT.zh[key] || DICT.en[key] || key;
+      const [full, setFull] = React.useState(readPreference);
+
+      // While enabled, keep re-asserting the full width: the app rewrites the
+      // inline property on mount, resize, and edge drags.
+      React.useEffect(() => {
+        if (!full) return undefined;
+        applyFullWidth();
+        const timer = window.setInterval(applyFullWidth, 800);
+        return () => window.clearInterval(timer);
+      }, [full]);
 
       const commit = (value) => {
         try {
-          if (value === null) localStorage.removeItem(WIDTH_KEY);
-          else localStorage.setItem(WIDTH_KEY, String(value));
-        } catch { /* storage unavailable; live preview still works */ }
-        setPreference(value);
-        applyWidth(value);
+          if (value) localStorage.setItem(FULL_KEY, '1');
+          else localStorage.removeItem(FULL_KEY);
+        } catch { /* storage unavailable; live effect still works */ }
+        setFull(value);
+        if (value) applyFullWidth();
+        else clearFullWidth();
       };
-
-      const description = preference === null
-        ? tr('chatwidth.desc.default')
-        : tr('chatwidth.desc.value', { width: preference });
 
       return h('div', { className: 'akp-cw-row' },
         h('style', null, css),
         h('div', { className: 'akp-cw-rowText' },
           h('div', { className: 'akp-cw-title' }, tr('chatwidth.title')),
-          h('div', { className: 'akp-cw-desc' }, description),
+          h('div', { className: 'akp-cw-desc' }, tr('chatwidth.desc')),
         ),
-        h('div', { className: 'akp-cw-control' },
-          h('input', {
-            type: 'range', className: 'akp-cw-slider',
-            min: CONTENT_MIN, max: SLIDER_MAX, step: SLIDER_STEP,
-            value: preference === null ? 920 : Math.round(preference),
-            'aria-label': tr('chatwidth.title'),
-            onChange: (event) => commit(Number(event.target.value)),
-          }),
-          h('span', { className: 'akp-cw-value' },
-            preference === null ? tr('chatwidth.reset') : `${preference}px`),
-          h('button', {
-            type: 'button', className: 'akp-cw-reset',
-            onClick: () => commit(null),
-            disabled: preference === null,
-          }, tr('chatwidth.reset')),
-        ),
+        h('input', {
+          type: 'checkbox', className: 'akp-cw-switch', role: 'switch',
+          checked: full,
+          'aria-label': tr('chatwidth.title'),
+          onChange: (event) => commit(event.target.checked),
+        }),
       );
     }
 
@@ -150,9 +116,8 @@ window.__ModuleLoader__.load({
             order: 30,
             locale: NS,
           }, WidthRow));
-          // Apply a stored preference on (re)load, before any drag happens.
-          const stored = readPreference();
-          if (stored !== null) applyWidth(stored);
+          // Re-assert a stored preference right after load.
+          if (readPreference()) applyFullWidth();
           return () => {
             disposeInject();
             if (typeof undoLocale === 'function') undoLocale();

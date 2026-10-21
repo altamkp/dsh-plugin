@@ -1,0 +1,8 @@
+{
+  "name": "@altamkp/dsh-plugin-chat-width",
+  "version": "2.4.0",
+  "private": true,
+  "type": "module",
+  "description": "Host half of the Conversation width plugin. Its own manifest keeps this row from counting as a client source of the collection package; the browser half ships from the collection root.",
+  "main": "index.js"
+}

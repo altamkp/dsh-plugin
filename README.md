@@ -10,7 +10,7 @@ is a subpath module that carries **its own name and description**:
 |---|---|---|
 | Default session permission | `@altamkp/dsh-plugin/default-permission` | New sessions start on **Full access** (完全权限), and the level you last selected in the chatbox becomes the new default |
 | Session notifications | `@altamkp/dsh-plugin/notifications` | A native desktop notification on Windows, macOS and Linux when a session needs you |
-| Conversation width | `@altamkp/dsh-plugin/chat-width` | A **Conversation width** slider in Settings → General that pins the transcript to a fixed pixel width instead of wide empty margins |
+| Conversation width | `@altamkp/dsh-plugin/chat-width` | A **Conversation width** toggle in Settings → General that stretches the transcript to the full window width instead of wide empty margins |
 
 The collection itself is named "altamkp's plugin" (中文: "altamkp 的插件"); the
 plugin manager shows that name on the bundle, and each plugin's own name and
@@ -227,18 +227,18 @@ fields you want to keep.
 ## Conversation width
 
 The Web UI centers the conversation on a fixed-width column, which leaves two
-large empty margins on a wide window. The layout already supports a pinned
-width — invisible drag handles on either edge of the transcript store a pixel
-preference in `localStorage["dsh.conversation.contentWidth"]` — but there was
-no visible control for it. This plugin adds that control: a
-**Conversation width** row (对话宽度) in **Settings → General**, with a slider
-(640–2000 px) and a **Default** (默认) button that removes the preference
-again.
+large empty margins on a wide window. This plugin adds a **Conversation width**
+row (对话宽度) in **Settings → General**: a toggle that stretches the transcript
+and composer to the full conversation-column width. Off (the default) restores
+the centered layout.
 
-The slider reads and writes the same preference the drag handles use, so both
-stay in agreement; the change applies immediately, also while a session is
-open. The plugin is Web-page-only (`dsh.client` in `package.json`) — the Host
-half carries just the row, its locale text and the icon.
+While enabled, the plugin pins the same custom property the app itself consumes
+(`--dsh-chat-user-width` on the conversation body) to the full column width and
+re-asserts it whenever the app republishes its own value (mount, resize, edge
+drag). The preference is stored in `localStorage["dsh.conversation.fullWidth"]`
+and never touches the app's own width preference. The plugin is Web-page-only
+(`dsh.client` in `package.json`) — the Host half carries just the row, its
+locale text and the icon.
 
 ## Install
 
