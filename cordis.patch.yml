@@ -47,4 +47,10 @@
         includeSubagents: false
     - id: chat-width
       name: "@altamkp/dsh-plugin/chat-width"
+    # The browser (client) half of chat-width lives at the package root: the
+    # web module roster only resolves bare package-root row names, so this
+    # no-op Host row is what carries `dsh.client` (exports "./client") to the
+    # page. Keep it even though chat-width's own row stays Host-only.
+    - id: chat-width-client
+      name: "@altamkp/dsh-plugin"
 

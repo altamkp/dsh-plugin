@@ -16,6 +16,7 @@
     "./chat-width/client": "./chat-width/client.js",
     "./chat-width/locale/*.json": "./locale/chat-width/*.json",
     "./chat-width/icon": "./chat-width/icon.svg",
+    "./client": "./chat-width/client.js",
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg"
   },

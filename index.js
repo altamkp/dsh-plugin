@@ -18,3 +18,11 @@
 
 /** The plugins this collection ships, by their module subpath. */
 export const plugins = ['default-permission', 'notifications', 'chat-width']
+
+/**
+ * No-op Host half for the collection root. The root is mounted as a Loader
+ * row only so its `dsh.client` declaration (the chat-width browser half,
+ * exported as "./client") reaches the Web page; it contributes no Host
+ * behavior of its own.
+ */
+export function apply() {}
