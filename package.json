@@ -1,17 +1,11 @@
 {
   "name": "@altamkp/dsh-plugin",
-  "version": "2.5.0",
+  "version": "2.6.0",
   "private": true,
   "type": "module",
   "description": "altamkp's personal plugin collection for DeepSeek Harness — personal tweaks and tools maintained by altamkp",
   "exports": {
     ".": "./index.js",
-    "./default-permission": "./default-permission/index.js",
-    "./default-permission/locale/*.json": "./locale/default-permission/*.json",
-    "./default-permission/icon": "./icon.svg",
-    "./notifications": "./notifications/index.js",
-    "./notifications/locale/*.json": "./locale/notifications/*.json",
-    "./notifications/icon": "./notifications/icon.svg",
     "./chat-width": "./chat-width/index.js",
     "./chat-width/client": "./chat-width/client.js",
     "./chat-width/locale/*.json": "./locale/chat-width/*.json",
@@ -22,21 +16,12 @@
   },
   "files": [
     "index.js",
-    "default-permission/index.js",
-    "default-permission/package.json",
-    "notifications/index.js",
-    "notifications/notify.js",
-    "notifications/windows.js",
-    "notifications/icon.svg",
-    "notifications/package.json",
     "chat-width/index.js",
     "chat-width/client.js",
     "chat-width/icon.svg",
     "chat-width/package.json",
     "cordis.patch.yml",
     "locale/*.json",
-    "locale/default-permission/*.json",
-    "locale/notifications/*.json",
     "locale/chat-width/*.json",
     "icon.svg"
   ],
@@ -47,6 +32,7 @@
       "immediately": true,
       "inject": [
         "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-conversation",
         "@deepseek-ai/dsh-client-ui-settings-general"
       ]
     }

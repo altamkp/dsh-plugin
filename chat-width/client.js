@@ -106,21 +106,40 @@ window.__ModuleLoader__.load({
     }
 
     return {
-      inject: ['slots'],
+      // 'locale' backs ctx.locale below. Declaring it keeps this fiber pending
+      // until the host provides the service, instead of failing on a missing
+      // ctx.locale.
+      inject: ['slots', 'locale'],
       apply(ctx) {
         ctx.effect(() => {
-          const undoLocale = ctx.locale.register(NS, { en: DICT.en, zh: DICT.zh });
-          const disposeInject = ctx.slots.inject('settings.general.item', () => ctx.slots.register({
-            name: 'settings.general.item',
-            id: 'chat-width',
-            order: 30,
-            locale: NS,
-          }, WidthRow));
+          // A throw inside this effect fails the fiber, and the web boot audit
+          // then refuses to start the whole UI — so each step below degrades on
+          // its own instead of taking the whole client down with it.
+          const cleanups = [];
+          const onCleanup = (dispose) => {
+            if (typeof dispose === 'function') cleanups.push(dispose);
+          };
+          try {
+            onCleanup(ctx.locale.register(NS, { en: DICT.en, zh: DICT.zh }));
+          } catch (error) {
+            console.error('[dsh-plugin/chat-width] the dictionary was not registered:', error);
+          }
+          try {
+            onCleanup(ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+              name: 'settings.general.item',
+              id: 'chat-width',
+              order: 30,
+              locale: NS,
+            }, WidthRow)));
+          } catch (error) {
+            console.error('[dsh-plugin/chat-width] the settings row could not be registered:', error);
+          }
           // Re-assert a stored preference right after load.
           if (readPreference()) applyFullWidth();
           return () => {
-            disposeInject();
-            if (typeof undoLocale === 'function') undoLocale();
+            for (const dispose of cleanups.reverse()) {
+              try { dispose(); } catch { /* one stale disposer must not block the rest */ }
+            }
           };
         }, 'chat-width: settings row');
       },

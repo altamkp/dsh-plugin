@@ -1,8 +1,0 @@
-{
-  "name": "@altamkp/dsh-plugin-default-permission",
-  "version": "2.4.0",
-  "private": true,
-  "type": "module",
-  "description": "Host half of the Default session permission plugin. Its own manifest keeps this row from counting as a client source of the collection package.",
-  "main": "index.js"
-}

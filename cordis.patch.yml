@@ -1,16 +1,13 @@
-# Two layers on purpose.
+# One layer on purpose.
 #
-# 1. Seed: the shipped "permission" row is pinned to Full access so a fresh
-#    session starts with 完全权限 even before the plugin has stored anything.
-#    A profile-layer value written later always wins over this one.
-# 2. Plugin: default-permission/index.js records the level the user last
-#    selected in a session's Permissions control and persists it as the new
-#    default.
+# The shipped "permission" row is pinned to Full access so a fresh session
+# starts with 完全权限. A profile-layer value written later always wins over
+# this one.
 #
-# This bundle hosts several plugins: each plugin is a subpath module with its
-# own name and description (locale/<plugin>/<lang>.json), and every plugin
-# mounts as a row appended to the insert list below. The package root is the
-# collection itself and carries no plugin row.
+# This bundle hosts one plugin: it is a subpath module with its own name and
+# description (locale/<plugin>/<lang>.json), and it mounts as a row appended
+# to the insert list below. The package root is the collection itself and
+# carries no plugin row.
 - id: permission
   name: "@deepseek-ai/dsh-permission-presets"
   config:
@@ -27,30 +24,11 @@
     defaultPreset: danger-full-access
 
 - insert:
-    - id: default-permission
-      name: "@altamkp/dsh-plugin/default-permission"
-    - id: notifications
-      name: "@altamkp/dsh-plugin/notifications"
-      # Every field is optional and these are the defaults. A profile-level
-      # patch for this row replaces the whole mapping, so restate the fields
-      # you want to keep.
-      config:
-        appName: "DeepSeek Harness"
-        events:
-          completed: true
-          question: true
-          approval: true
-          error: true
-        suppressWhenFocused: true
-        clickToFocus: true
-        cooldownMs: 5000
-        includeSubagents: false
     - id: chat-width
       name: "@altamkp/dsh-plugin/chat-width"
-    # The browser (client) half of chat-width lives at the package root: the
-    # web module roster only resolves bare package-root row names, so this
-    # no-op Host row is what carries `dsh.client` (exports "./client") to the
-    # page. Keep it even though chat-width's own row stays Host-only.
+    # The collection root is the one package the Web module roster can carry
+    # a client bundle for, so its row is the carrier of the browser half that
+    # ships from "./client" — the Conversation width plugin's Web page half.
     - id: chat-width-client
       name: "@altamkp/dsh-plugin"
 

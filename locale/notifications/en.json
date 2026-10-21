@@ -1,6 +1,0 @@
-{
-  "meta": {
-    "title": "Session Notifications",
-    "description": "Raises a native desktop notification on Windows, macOS and Linux when a session needs you: a finished task, a question to answer, or a request to approve."
-  }
-}
